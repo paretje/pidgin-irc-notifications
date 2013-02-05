@@ -30,6 +30,7 @@ class IRCNotificationPlugin(object):
     def __init__(self, args):
         self.add_channels(args.channels)
         self.verbose = args.verbose
+        self.focus_check = args.focus_check
         
         bus = dbus.SessionBus()
         # Add sginal receiver for irc chat msg
@@ -60,20 +61,29 @@ class IRCNotificationPlugin(object):
             print "Whoops...username wasn't in expected format..."
             return
         channel = self.purple.PurpleConversationGetTitle(conversation)
-        if channel in self.channels and username != sender:
+
+        # Check conversation window focus status as needed
+        if self.focus_check:
+            focus = self.purple.PurpleConversationHasFocus(conversation)
+        else:
+            focus = False
+
+        if channel in self.channels and username != sender and not focus:
             msg = "%s said: %s" % (sender, message)
             if self.verbose:
                 print msg
             n = pynotify.Notification(channel, msg).show()
 
-
-def parse_args(channels):
+def parse_args(channels, focus_check):
     parser = argparse.ArgumentParser(description="Enables notifications in"
         " irc channels provided in Pidgin.")
     parser.add_argument("channels", nargs="*", default=channels,
         help="Channel names (i.e. '#django' '#ubuntu')")
     parser.add_argument("-v", "--verbose", dest="verbose",
         action="store_true", default=False, help="Enables verbose mode.")
+    parser.add_argument("-f", "--focus-check", dest="focus_check",
+        action="store_true", default=focus_check, 
+        help="Check for chat window focus before notifying.")
     
     args = parser.parse_args()
     if not channels and not args.channels:
@@ -100,7 +110,7 @@ def main():
     config = parser.parse()
     
     # Get command line args
-    args = parse_args(config['channels'])   
+    args = parse_args(config['channels'], config['focus_check'])   
 
     # Initialize pynotify
     pynotify.init('Initializing IRC Notifications...')

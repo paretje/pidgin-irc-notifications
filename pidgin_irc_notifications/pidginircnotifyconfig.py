@@ -17,7 +17,7 @@ class PidginIrcNotifyConfig(object):
         """
         Returns the parser, and creates default config, if it doesn't exist
         """
-        parser = SafeConfigParser({'channels': []})
+        parser = SafeConfigParser({'channels': [], 'focus-check': False})
         exists = parser.read(self.config_file_path)
         if not exists:
             self.create_default_config(parser)
@@ -30,6 +30,7 @@ class PidginIrcNotifyConfig(object):
         """
         parser.add_section('irc')
         parser.set('irc', 'channels', '')
+        parser.set('irc', 'focus-check', 'False')
         
         # create the full path, and the file
         try:
@@ -50,6 +51,9 @@ class PidginIrcNotifyConfig(object):
         else:
             channels = channels.split(',')
         config['channels'] = channels
+
+        focus_check = self.parser.getboolean('irc', 'focus-check')
+        config['focus_check'] = focus_check
         return config
 
 
