@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 """
 Copyright (C) 2012 Aaron Godfrey.
 
@@ -16,11 +16,9 @@ limitations under the License.
 """
 import argparse
 import dbus
-from dbus.mainloop.glib import DBusGMainLoop
+import dbus.mainloop.glib
 import gobject
 import pynotify
-
-from pidginircnotifyconfig import PidginIrcNotifyConfig
 
 
 class IRCNotificationPlugin(object):
@@ -28,26 +26,19 @@ class IRCNotificationPlugin(object):
     Pidgin IRC Notification 'plugin'
     """
     def __init__(self, args):
-        self.add_channels(args.channels)
         self.verbose = args.verbose
         self.focus_check = args.focus_check
-        
+
         bus = dbus.SessionBus()
         # Add sginal receiver for irc chat msg
         bus.add_signal_receiver(self.received_chat_msg_callback,
-            dbus_interface="im.pidgin.purple.PurpleInterface",
-            signal_name="ReceivedChatMsg")
-        
+                                dbus_interface="im.pidgin.purple.PurpleInterface",
+                                signal_name="ReceivedChatMsg")
+
         # Get the pidgin purple interface
         obj = bus.get_object("im.pidgin.purple.PurpleService",
-            "/im/pidgin/purple/PurpleObject")
+                             "/im/pidgin/purple/PurpleObject")
         self.purple = dbus.Interface(obj, "im.pidgin.purple.PurpleInterface")
-
-    def add_channels(self, channels):
-        """
-        Prefixes each channel with a # if it doesn't have one then sets the var
-        """
-        self.channels = [add_hash(c) for c in channels]
 
     def received_chat_msg_callback(self, account, sender, message, conversation, flags):
         """
@@ -58,66 +49,45 @@ class IRCNotificationPlugin(object):
             # username in format user@irc.someserver.net
             username = self.purple.PurpleAccountGetUsername(account).split('@')[0]
         except IndexError:
-            print "Whoops...username wasn't in expected format..."
+            print("Whoops...username wasn't in expected format...")
             return
         channel = self.purple.PurpleConversationGetTitle(conversation)
 
-        # Check conversation window focus status as needed
-        if self.focus_check:
-            focus = self.purple.PurpleConversationHasFocus(conversation)
-        else:
-            focus = False
-
-        if channel in self.channels and username != sender and not focus:
+        if channel.startswith('#') and username != sender \
+                and message.find(username) == -1 \
+                and (not self.focus_check
+                     or not self.purple.PurpleConversationHasFocus(conversation)):
             msg = "%s said: %s" % (sender, message)
             if self.verbose:
-                print msg
-            n = pynotify.Notification(channel, msg).show()
+                print(msg)
+            pynotify.Notification(channel, msg).show()
 
-def parse_args(channels, focus_check):
+
+def parse_args():
     parser = argparse.ArgumentParser(description="Enables notifications in"
-        " irc channels provided in Pidgin.")
-    parser.add_argument("channels", nargs="*", default=channels,
-        help="Channel names (i.e. '#django' '#ubuntu')")
-    parser.add_argument("-v", "--verbose", dest="verbose",
-        action="store_true", default=False, help="Enables verbose mode.")
+                                     " irc channels provided in Pidgin.")
     parser.add_argument("-f", "--focus-check", dest="focus_check",
-        action="store_true", default=focus_check, 
-        help="Check for chat window focus before notifying.")
-    
+                        action="store_true", default=True,
+                        help="Check for chat window focus before notifying.")
+    parser.add_argument("-v", "--verbose", dest="verbose", action="store_true",
+                        default=False, help="Enables verbose mode.")
     args = parser.parse_args()
-    if not channels and not args.channels:
-        parser.error('At least one channel is required as a parameter '
-            'or default channels must be added to your configuraiton.')
     return args
-
-
-def add_hash(name):
-    """
-    Adds the hash to the name if it doesn't start with one
-    """
-    if not name.startswith('#'):
-        name = '#' + name
-    return name
 
 
 def main():
     """
     Runs main loop and sets up listener
     """
-    # Get config
-    parser = PidginIrcNotifyConfig()
-    config = parser.parse()
-    
     # Get command line args
-    args = parse_args(config['channels'], config['focus_check'])   
+    args = parse_args()
 
     # Initialize pynotify
     pynotify.init('Initializing IRC Notifications...')
 
     # Setup dbus glib mainloop
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    
+
     # Init plugin
     IRCNotificationPlugin(args)
 
