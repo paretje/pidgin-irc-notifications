@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python2
 """
 Copyright (C) 2012 Aaron Godfrey.
 
@@ -17,8 +17,8 @@ limitations under the License.
 import argparse
 import dbus
 import dbus.mainloop.glib
-import gobject
-import pynotify
+from gi.repository import GObject
+from gi.repository import Notify
 
 
 class IRCNotificationPlugin(object):
@@ -60,7 +60,7 @@ class IRCNotificationPlugin(object):
             msg = "%s said: %s" % (sender, message)
             if self.verbose:
                 print(msg)
-            pynotify.Notification(channel, msg).show()
+            Notify.Notification.new(channel, msg).show()
 
 
 def parse_args():
@@ -83,7 +83,7 @@ def main():
     args = parse_args()
 
     # Initialize pynotify
-    pynotify.init('Initializing IRC Notifications...')
+    Notify.init('Initializing IRC Notifications...')
 
     # Setup dbus glib mainloop
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -92,7 +92,7 @@ def main():
     IRCNotificationPlugin(args)
 
     # Obtain main loop and run it
-    gobject.MainLoop().run()
+    GObject.MainLoop().run()
 
 
 if __name__ == "__main__":
