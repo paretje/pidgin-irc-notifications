@@ -51,7 +51,8 @@ class IRCNotificationPlugin(object):
             print("Whoops...username wasn't in expected format...")
             return
         channel = self.purple.PurpleConversationGetTitle(conversation)
-        if channel.startswith('#') and username != sender:
+        if channel.startswith('#') and username != sender \
+                and message.find(username) == -1:
             msg = "%s said: %s" % (sender, message)
             if self.verbose:
                 print(msg)
